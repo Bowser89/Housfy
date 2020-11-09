@@ -1,0 +1,96 @@
+version: '3.7'
+# --------- #
+# Services  #
+# --------- #
+services:
+  #######
+  # PHP #
+  #######
+  php-fpm:
+    build:
+      context: ${PHPFPM_CONF_FOLDER}
+      args:
+        USER_ID: ${USER_ID}
+        GROUP_ID: ${GROUP_ID}
+    depends_on:
+      - mysql
+    networks:
+      internal:
+        aliases:
+          - php-fpm.internal
+    volumes:
+      - ${PROJECT_ROOT}/:/var/www
+
+  #########
+  # NGINX #
+  #########
+  nginx:
+    build:
+      context: ${NGINX_CONF_FOLDER}
+    depends_on:
+      - php-fpm
+    networks:
+      internal:
+        aliases:
+          - nginx.internal
+    volumes:
+      - ${PROJECT_ROOT}/:/var/www
+      - ${NGINX_CONF_FOLDER}/nginx.conf:/etc/nginx/nginx.conf
+      - ${NGINX_CONF_FOLDER}/sites/:/etc/nginx/sites-available
+      - ${NGINX_CONF_FOLDER}/conf.d/:/etc/nginx/conf.d
+    ports:
+      - "8888:80"
+      - "443:443"
+    environment:
+      HOST_USER_ID: ${USER_ID}
+      HOST_GROUP_ID: ${GROUP_ID}
+
+  #########
+  # MYSQL #
+  #########
+  mysql:
+    image: mysql:5.7
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ${MYSQL_SCRIPTS_FOLDER}:/docker-entrypoint-initdb.d/
+    networks:
+      internal:
+        aliases:
+          - mysql.internal
+    ports:
+      - '3307:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+
+  ##############
+  # PHPMYADMIN #
+  ##############
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    depends_on:
+      - mysql
+    networks:
+      internal:
+        aliases:
+          - phpmyadmin.internal
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+
+  #########
+  # REDIS #
+  #########
+  redis:
+    image: redis:4.0
+    ports:
+      - "6379:6379"
+    networks:
+      internal:
+        aliases:
+          - redis.internal
+networks:
+  internal:
+
+volumes:
+  mysql-data:
